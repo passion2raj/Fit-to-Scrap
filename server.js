@@ -8,15 +8,14 @@ var mongoose = require("mongoose");
 var axios = require("axios");
 var cheerio = require("cheerio");
 
-// Require all models
+// Initialize Express
+var app = express();
+
 var db = require("./models");
 
 var PORT = 3000;
 
-// Initialize Express
-var app = express();
 
-// Configure middleware
 
 // Use morgan logger for logging requests
 app.use(logger("dev"));
@@ -34,23 +33,23 @@ mongoose.connect("mongodb://localhost/unit18Populater", { useNewUrlParser: true 
 // A GET route for scraping the echoJS website
 app.get("/scrape", function(req, res) {
   // First, we grab the body of the html with axios
-  axios.get("http://old.reddit.com/").then(function(response) {
-    // Then, we load that into cheerio and save it to $ for a shorthand selector
+  axios.get("http://old.reddit.com/webdev").then(function(response) {
+    console.log("after scrape call");
+    
+    
     var $ = cheerio.load(response.data);
-
+    // console.log($)
     // Now, we grab every h2 within an article tag, and do the following:
-    $("article ").each(function(i, element) {
+    $("p.title").each(function(i,element) {
+      //console.log(element)
       // Save an empty result object
+      var title= $(element).text();
       var result = {};
 
       // Add the text and href of every link, and save them as properties of the result object
-      result.title = $(this)
-        .children("a")
-        .text();
-      result.link = $(this)
-        .children("a")
-        .attr("href");
-
+      result.title = $(this).children("a").text();
+      result.link = $(this).children("a").attr("href");
+      console.log("result", result)
       // Create a new Article using the `result` object built from scraping
       db.Article.create(result)
         .then(function(dbArticle) {
@@ -71,25 +70,23 @@ app.get("/scrape", function(req, res) {
 // Route for getting all Articles from the db
 app.get("/articles", function(req, res) {
   // TODO: Finish the route so it grabs all of the articles
-  db.Article.find({}).then(function(found){
-    res.json(found);
+  db.Article.find({}).then(function(dbArticle){
+    res.json(dbArticle);
   }).catch(function(err){
-    console.log(err);
+      res.json(err);
   })
 });
 
 // Route for grabbing a specific Article by id, populate it with it's note
 app.get("/articles/:id", function(req, res) {
   
-
-  
-    // Finish the route so it finds one article using the req.params.id,
+  // Finish the route so it finds one article using the req.params.id,
   // and run the populate method with "note",
   // then responds with the article with the note included
-  db.Article.find({_id: req.params.id}).populate("note").then(function(found){
-    res.json(found);
+  db.Article.findOne({_id: req.params.id}).populate("note").then(function(dbArticle){
+    res.json(dbArticle);
   }).catch(function(err){
-    console.log(err);
+    res.json(err);
   });
 
 });
@@ -104,7 +101,11 @@ app.post("/articles/:id", function(req, res) {
   .then(function(dbNote){
     return db.Article.findOneAndUpdate({_id: req.params.id}, {note:dbnNote._id},{new:true});
     }).then(function(dbArticle){
+      res.json(dbArticle);
 
+    })
+    .catch(function(err){
+      res.json(err);
     });
 });
 
